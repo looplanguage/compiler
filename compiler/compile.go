@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"github.com/looplanguage/compiler/code"
 	"github.com/looplanguage/loop/models/ast"
 	"github.com/looplanguage/loop/models/object"
@@ -29,6 +30,13 @@ func (c *Compiler) Compile(node ast.Node) error {
 		err = c.Compile(node.Right)
 		if err != nil {
 			return err
+		}
+
+		switch node.Operator {
+		case "+":
+			c.emit(code.OpAdd)
+		default:
+			return fmt.Errorf("unknown operator: %s", node.Operator)
 		}
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}

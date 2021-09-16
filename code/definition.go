@@ -6,10 +6,6 @@ import (
 	"fmt"
 )
 
-var definitions = map[OpCode]*Definition{
-	OpConstant: {"OpConstant", []int{2}},
-}
-
 type Definition struct {
 	Name          string
 	OperandWidths []int
@@ -45,6 +41,8 @@ func (ins Instructions) fmtInstruction(def *Definition, operands []int) string {
 	}
 
 	switch operandCount {
+	case 0:
+		return def.Name
 	case 1:
 		return fmt.Sprintf("%s %d", def.Name, operands[0])
 	}
