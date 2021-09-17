@@ -136,7 +136,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 func (c *Compiler) addConstant(obj object.Object) int {
 	c.constants = append(c.constants, obj)
-	fmt.Printf("%+v\n", obj)
 	return len(c.constants) - 1
 }
 

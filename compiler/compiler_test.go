@@ -183,6 +183,26 @@ func TestCompiler_Conditionals(t *testing.T) {
 				code.Make(code.OpPop),
 			},
 		},
+		{
+			input:             `if(true) { 10 } else if(true) { 20 } else if(false) { 30 } else { 40 }; 1000;`,
+			expectedConstants: []interface{}{10, 20, 30, 40, 1000},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpTrue),
+				code.Make(code.OpJumpIfNotTrue, 7),
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpTrue),
+				code.Make(code.OpJumpIfNotTrue, 14),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpFalse),
+				code.Make(code.OpJumpIfNotTrue, 24),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpJump, 27),
+				code.Make(code.OpConstant, 3),
+				code.Make(code.OpPop),
+				code.Make(code.OpConstant, 4),
+				code.Make(code.OpPop),
+			},
+		},
 	}
 
 	runCompilerTests(t, tests)
