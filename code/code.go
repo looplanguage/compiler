@@ -18,6 +18,7 @@ const (
 	OpGreaterThan
 	OpJump
 	OpJumpIfNotTrue
+	OpNull
 )
 
 var definitions = map[OpCode]*Definition{
@@ -34,4 +35,5 @@ var definitions = map[OpCode]*Definition{
 	OpGreaterThan:   {"OpGreaterThan", []int{}},
 	OpJump:          {"OpJump", []int{2}},
 	OpJumpIfNotTrue: {"OpJumpIfNotTrue", []int{2}},
+	OpNull:          {"OpNull", []int{}},
 }

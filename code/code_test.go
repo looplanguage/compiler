@@ -40,6 +40,7 @@ func TestInstructionFormatting(t *testing.T) {
 		Make(OpEquals),
 		Make(OpNotEquals),
 		Make(OpGreaterThan),
+		Make(OpNull),
 	}
 
 	expected := `[0000] OpAdd
@@ -51,6 +52,7 @@ func TestInstructionFormatting(t *testing.T) {
 [0010] OpEquals
 [0011] OpNotEquals
 [0012] OpGreaterThan
+[0013] OpNull
 `
 
 	concatted := Instructions{}
