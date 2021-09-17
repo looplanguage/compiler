@@ -9,6 +9,7 @@ const (
 	OpAdd
 	OpMultiply
 	OpDivide
+	OpPop
 )
 
 var definitions = map[OpCode]*Definition{
@@ -16,4 +17,5 @@ var definitions = map[OpCode]*Definition{
 	OpAdd:      {"OpAdd", []int{}},
 	OpMultiply: {"OpMultiply", []int{}},
 	OpDivide:   {"OpDivide", []int{}},
+	OpPop:      {"OpPop", []int{}},
 }
