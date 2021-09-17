@@ -23,6 +23,21 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 		c.emit(code.OpPop)
 	case *ast.SuffixExpression:
+		if node.Operator == "<" {
+			err := c.Compile(node.Right)
+			if err != nil {
+				return err
+			}
+
+			err = c.Compile(node.Left)
+			if err != nil {
+				return err
+			}
+
+			c.emit(code.OpGreaterThan)
+			return nil
+		}
+
 		err := c.Compile(node.Left)
 		if err != nil {
 			return err
@@ -42,6 +57,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpDivide)
 		case "-":
 			c.emit(code.OpSubtract)
+		case "==":
+			c.emit(code.OpEquals)
+		case "!=":
+			c.emit(code.OpNotEquals)
+		case ">":
+			c.emit(code.OpGreaterThan)
 		default:
 			return fmt.Errorf("unknown operator: %s", node.Operator)
 		}

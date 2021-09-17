@@ -82,6 +82,57 @@ func TestIntegerArithmetic(t *testing.T) {
 				code.Make(code.OpPop),
 			},
 		},
+		{
+			input:             "1 == 1",
+			expectedConstants: []interface{}{1, 1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpEquals),
+				code.Make(code.OpPop),
+			},
+		},
+		/* TODO: Add parser support
+		{
+			input:             "1 != 1",
+			expectedConstants: []interface{}{1, 1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpNotEquals),
+				code.Make(code.OpPop),
+			},
+		},*/
+		{
+			input:             "1 > 1",
+			expectedConstants: []interface{}{1, 1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpGreaterThan),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             "1 < 1",
+			expectedConstants: []interface{}{1, 1},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpGreaterThan),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             "true == false",
+			expectedConstants: []interface{}{},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpTrue),
+				code.Make(code.OpFalse),
+				code.Make(code.OpEquals),
+				code.Make(code.OpPop),
+			},
+		},
 	}
 
 	runCompilerTests(t, tests)
@@ -90,7 +141,9 @@ func TestIntegerArithmetic(t *testing.T) {
 func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 	t.Helper()
 
+	i := 0
 	for _, tc := range tests {
+		i++
 		program := parse(tc.input)
 
 		compiler := Create()
@@ -112,7 +165,7 @@ func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 		err = testConstants(t, tc.expectedConstants, bytecode.Constants)
 
 		if err != nil {
-			t.Fatalf("testConstants failed with: %s", err)
+			t.Fatalf("[%d/%d] testConstants failed with: %s", i, len(tests), err)
 		}
 	}
 }
