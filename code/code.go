@@ -11,6 +11,8 @@ const (
 	OpDivide
 	OpPop
 	OpSubtract
+	OpTrue
+	OpFalse
 )
 
 var definitions = map[OpCode]*Definition{
@@ -20,4 +22,6 @@ var definitions = map[OpCode]*Definition{
 	OpDivide:   {"OpDivide", []int{}},
 	OpPop:      {"OpPop", []int{}},
 	OpSubtract: {"OpSubtract", []int{}},
+	OpTrue:     {"OpTrue", []int{}},
+	OpFalse:    {"OpFalse", []int{}},
 }

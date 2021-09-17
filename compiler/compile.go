@@ -48,6 +48,13 @@ func (c *Compiler) Compile(node ast.Node) error {
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
+	case *ast.Boolean:
+		switch node.Value {
+		case true:
+			c.emit(code.OpTrue)
+		case false:
+			c.emit(code.OpFalse)
+		}
 	}
 
 	return nil
