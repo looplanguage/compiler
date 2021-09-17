@@ -40,6 +40,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpMultiply)
 		case "/":
 			c.emit(code.OpDivide)
+		case "-":
+			c.emit(code.OpSubtract)
 		default:
 			return fmt.Errorf("unknown operator: %s", node.Operator)
 		}
