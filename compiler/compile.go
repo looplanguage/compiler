@@ -76,6 +76,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 		case false:
 			c.emit(code.OpFalse)
 		}
+	case *ast.ConditionalStatement:
+		err := c.Compile(node.Condition)
+		if err != nil {
+
+		}
 	}
 
 	return nil
