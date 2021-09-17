@@ -152,6 +152,37 @@ func TestCompiler_Conditionals(t *testing.T) {
 				code.Make(code.OpPop),
 			},
 		},
+		{
+			input:             `if(true) { 10 } else { 20 }; 1000;`,
+			expectedConstants: []interface{}{10, 20, 1000},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpTrue),
+				code.Make(code.OpJumpIfNotTrue, 10),
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpJump, 13),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpPop),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             `if(true) { 10 } else if(true) { 20 } else { 30 }; 1000;`,
+			expectedConstants: []interface{}{10, 20, 30, 1000},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpTrue),
+				code.Make(code.OpJumpIfNotTrue, 7),
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpTrue),
+				code.Make(code.OpJumpIfNotTrue, 17),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpJump, 20),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpPop),
+				code.Make(code.OpConstant, 3),
+				code.Make(code.OpPop),
+			},
+		},
 	}
 
 	runCompilerTests(t, tests)
@@ -195,8 +226,9 @@ func testInstructions(
 ) error {
 	concatted := concatInstructions(expected)
 	if len(actual) != len(concatted) {
-		return fmt.Errorf("wrong instructions length.\nwant=%q\ngot =%q",
-			concatted, actual)
+		return fmt.Errorf("wrong instructions length.\ngot=\n%q\nwant=\n%q",
+			actual.String(),
+			concatted.String())
 	}
 	for i, ins := range concatted {
 		if actual[i] != ins {

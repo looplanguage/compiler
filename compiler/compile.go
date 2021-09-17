@@ -79,7 +79,55 @@ func (c *Compiler) Compile(node ast.Node) error {
 	case *ast.ConditionalStatement:
 		err := c.Compile(node.Condition)
 		if err != nil {
+			return err
+		}
 
+		jumpPos := c.emit(code.OpJumpIfNotTrue, 9999)
+
+		err = c.Compile(node.Body)
+		if err != nil {
+			return err
+		}
+
+		if c.lastInstructionIsPop() {
+			c.removeLastPop()
+		}
+
+		if node.ElseCondition == nil && node.ElseStatement == nil {
+			elsePos := len(c.instructions)
+			c.changeOperand(jumpPos, elsePos)
+		} else if node.ElseCondition != nil {
+			elseJumpPos := c.emit(code.OpJump, 9999)
+
+			afterElsePos := len(c.instructions)
+			c.changeOperand(jumpPos, afterElsePos)
+
+			err := c.Compile(node.ElseCondition)
+			if err != nil {
+				return nil
+			}
+
+			if c.lastInstructionIsPop() {
+				c.removeLastPop()
+			}
+
+			afterElsePos = len(c.instructions)
+			c.changeOperand(elseJumpPos, afterElsePos)
+		} else if node.ElseStatement != nil {
+			afterElsePos := len(c.instructions)
+			c.changeOperand(jumpPos, afterElsePos)
+
+			err := c.Compile(node.ElseStatement)
+			if err != nil {
+				return nil
+			}
+		}
+	case *ast.BlockStatement:
+		for _, s := range node.Statements {
+			err := c.Compile(s)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -88,13 +136,33 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 func (c *Compiler) addConstant(obj object.Object) int {
 	c.constants = append(c.constants, obj)
+	fmt.Printf("%+v\n", obj)
 	return len(c.constants) - 1
 }
 
 func (c *Compiler) emit(op code.OpCode, operands ...int) int {
 	ins := code.Make(op, operands...)
 	pos := c.addInstruction(ins)
+
+	c.setLastInstruction(op, pos)
+
 	return pos
+}
+
+func (c *Compiler) lastInstructionIsPop() bool {
+	return c.lastInstruction.OpCode == code.OpPop
+}
+
+func (c *Compiler) removeLastPop() {
+	c.instructions = c.instructions[:c.lastInstruction.Position]
+	c.lastInstruction = c.previousInstruction
+}
+
+func (c *Compiler) setLastInstruction(op code.OpCode, pos int) {
+	previous := c.lastInstruction
+	last := EmittedInstruction{OpCode: op, Position: pos}
+	c.previousInstruction = previous
+	c.lastInstruction = last
 }
 
 func (c *Compiler) addInstruction(ins []byte) int {
