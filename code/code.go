@@ -27,6 +27,8 @@ const (
 	OpCall
 	OpReturn
 	OpReturnValue
+	OpSetLocal
+	OpGetLocal
 )
 
 var definitions = map[OpCode]*Definition{
@@ -51,5 +53,7 @@ var definitions = map[OpCode]*Definition{
 	OpIndex:         {"OpHash", []int{}},
 	OpCall:          {"OpCall", []int{}},
 	OpReturn:        {"OpReturn", []int{}},
-	OpReturnValue:   {"OpReturn", []int{}},
+	OpReturnValue:   {"OpReturnValue", []int{}},
+	OpSetLocal:      {"OpSetLocal", []int{1}},
+	OpGetLocal:      {"OpGetLocal", []int{1}},
 }

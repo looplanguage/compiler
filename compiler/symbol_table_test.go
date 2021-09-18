@@ -4,12 +4,14 @@ import "testing"
 
 func TestSymbolTable_VariableDeclaration(t *testing.T) {
 	expected := map[string]Symbol{
-		"a": {Name: "a", Scope: GlobalScope, Index: 0},
-		"b": {Name: "b", Scope: GlobalScope, Index: 1},
+		"a": Symbol{Name: "a", Scope: GlobalScope, Index: 0},
+		"b": Symbol{Name: "b", Scope: GlobalScope, Index: 1},
+		"c": Symbol{Name: "c", Scope: LocalScope, Index: 0},
+		"d": Symbol{Name: "d", Scope: LocalScope, Index: 1},
+		"e": Symbol{Name: "e", Scope: LocalScope, Index: 0},
+		"f": Symbol{Name: "f", Scope: LocalScope, Index: 1},
 	}
-
 	global := CreateSymbolTable()
-
 	a := global.Define("a")
 	if a != expected["a"] {
 		t.Errorf("expected a=%+v, got=%+v", expected["a"], a)
@@ -18,15 +20,34 @@ func TestSymbolTable_VariableDeclaration(t *testing.T) {
 	if b != expected["b"] {
 		t.Errorf("expected b=%+v, got=%+v", expected["b"], b)
 	}
+	firstLocal := CreateEnclosedSymbolTable(global)
+	c := firstLocal.Define("c")
+	if c != expected["c"] {
+		t.Errorf("expected c=%+v, got=%+v", expected["c"], c)
+	}
+	d := firstLocal.Define("d")
+	if d != expected["d"] {
+		t.Errorf("expected d=%+v, got=%+v", expected["d"], d)
+	}
+	secondLocal := CreateEnclosedSymbolTable(firstLocal)
+	e := secondLocal.Define("e")
+	if e != expected["e"] {
+		t.Errorf("expected e=%+v, got=%+v", expected["e"], e)
+	}
+	f := secondLocal.Define("f")
+	if f != expected["f"] {
+		t.Errorf("expected f=%+v, got=%+v", expected["f"], f)
+	}
 }
+
 func TestSymbolTable_Resolve(t *testing.T) {
 	global := CreateSymbolTable()
 	global.Define("a")
 	global.Define("b")
 
 	expected := map[string]Symbol{
-		"a": {Name: "a", Scope: GlobalScope, Index: 0},
-		"b": {Name: "b", Scope: GlobalScope, Index: 1},
+		"a": Symbol{Name: "a", Scope: GlobalScope, Index: 0},
+		"b": Symbol{Name: "b", Scope: GlobalScope, Index: 1},
 	}
 
 	for _, sym := range expected {
@@ -38,6 +59,87 @@ func TestSymbolTable_Resolve(t *testing.T) {
 		if result != sym {
 			t.Errorf("expected %s to resolve to %+v, got=%+v",
 				sym.Name, sym, result)
+		}
+	}
+}
+
+func TestSymbolTable_ResolveLocal(t *testing.T) {
+	global := CreateSymbolTable()
+	global.Define("a")
+	global.Define("b")
+
+	local := CreateEnclosedSymbolTable(global)
+	local.Define("c")
+	local.Define("d")
+
+	expected := []Symbol{
+		{Name: "a", Scope: GlobalScope, Index: 0},
+		{Name: "b", Scope: GlobalScope, Index: 1},
+		{Name: "c", Scope: LocalScope, Index: 0},
+		{Name: "d", Scope: LocalScope, Index: 1},
+	}
+
+	for _, sym := range expected {
+		result, ok := local.Resolve(sym.Name)
+		if !ok {
+			t.Errorf("name %s not resolvable", sym.Name)
+			continue
+		}
+		if result != sym {
+			t.Errorf("expected %s to resolve to %+v, got=%+v",
+				sym.Name, sym, result)
+		}
+	}
+}
+
+func TestSymbolTable_ResolveLocalNested(t *testing.T) {
+	global := CreateSymbolTable()
+	global.Define("a")
+	global.Define("b")
+
+	local := CreateEnclosedSymbolTable(global)
+	local.Define("c")
+	local.Define("d")
+
+	moreLocal := CreateEnclosedSymbolTable(local)
+	moreLocal.Define("e")
+	moreLocal.Define("f")
+
+	tests := []struct {
+		table           *SymbolTable
+		expectedSymbols []Symbol
+	}{
+		{
+			local,
+			[]Symbol{
+				{Name: "a", Scope: GlobalScope, Index: 0},
+				{Name: "b", Scope: GlobalScope, Index: 1},
+				{Name: "c", Scope: LocalScope, Index: 0},
+				{Name: "d", Scope: LocalScope, Index: 1},
+			},
+		},
+		{
+			moreLocal,
+			[]Symbol{
+				{Name: "a", Scope: GlobalScope, Index: 0},
+				{Name: "b", Scope: GlobalScope, Index: 1},
+				{Name: "e", Scope: LocalScope, Index: 0},
+				{Name: "f", Scope: LocalScope, Index: 1},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		for _, sym := range tc.expectedSymbols {
+			result, ok := tc.table.Resolve(sym.Name)
+			if !ok {
+				t.Errorf("name %s not resolvable", sym.Name)
+				continue
+			}
+			if result != sym {
+				t.Errorf("expected %s to resolve to %+v, got=%+v",
+					sym.Name, sym, result)
+			}
 		}
 	}
 }

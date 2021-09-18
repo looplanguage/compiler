@@ -534,46 +534,113 @@ func TestCompiler_CallExpression(t *testing.T) {
 func TestCompiler_Scopes(t *testing.T) {
 	compiler := Create()
 	if compiler.scopeIndex != 0 {
-		t.Errorf("incorrect scope index. expected=0. got=%d", compiler.scopeIndex)
+		t.Errorf("scopeIndex wrong. got=%d, want=%d", compiler.scopeIndex, 0)
 	}
-
+	globalSymbolTable := compiler.symbolTable
 	compiler.emit(code.OpMultiply)
-
 	compiler.enterScope()
 	if compiler.scopeIndex != 1 {
-		t.Errorf("incorrect scope index. expected=1. got=%d", compiler.scopeIndex)
+		t.Errorf("scopeIndex wrong. got=%d, want=%d", compiler.scopeIndex, 1)
 	}
-
 	compiler.emit(code.OpSubtract)
-
 	if len(compiler.scopes[compiler.scopeIndex].instructions) != 1 {
-		t.Errorf("incorrect instructions length. expected=1. got=%d", len(compiler.scopes[compiler.scopeIndex].instructions))
+		t.Errorf("instructions length wrong. got=%d",
+			len(compiler.scopes[compiler.scopeIndex].instructions))
 	}
-
 	last := compiler.scopes[compiler.scopeIndex].lastInstruction
 	if last.OpCode != code.OpSubtract {
-		t.Errorf("incorrect instruction. expected=%d. got=%d", code.OpSubtract, last.OpCode)
+		t.Errorf("lastInstruction.Opcode wrong. got=%d, want=%d",
+			last.OpCode, code.OpSubtract)
 	}
-
+	if compiler.symbolTable.Outer != globalSymbolTable {
+		t.Errorf("compiler did not enclose symbolTable")
+	}
 	compiler.leaveScope()
 	if compiler.scopeIndex != 0 {
-		t.Errorf("incorrect scope index. expected=0. got=%d", compiler.scopeIndex)
+		t.Errorf("scopeIndex wrong. got=%d, want=%d",
+			compiler.scopeIndex, 0)
 	}
-
+	if compiler.symbolTable != globalSymbolTable {
+		t.Errorf("compiler did not restore global symbol table")
+	}
+	if compiler.symbolTable.Outer != nil {
+		t.Errorf("compiler modified global symbol table incorrectly")
+	}
 	compiler.emit(code.OpAdd)
 	if len(compiler.scopes[compiler.scopeIndex].instructions) != 2 {
-		t.Errorf("incorrect instructions length. expected=2. got=%d", len(compiler.scopes[compiler.scopeIndex].instructions))
+		t.Errorf("instructions length wrong. got=%d",
+			len(compiler.scopes[compiler.scopeIndex].instructions))
 	}
-
 	last = compiler.scopes[compiler.scopeIndex].lastInstruction
 	if last.OpCode != code.OpAdd {
-		t.Errorf("incorrect instruction. expected=%d. got=%d", code.OpAdd, last.OpCode)
+		t.Errorf("lastInstruction.Opcode wrong. got=%d, want=%d",
+			last.OpCode, code.OpAdd)
 	}
-
 	previous := compiler.scopes[compiler.scopeIndex].previousInstruction
 	if previous.OpCode != code.OpMultiply {
-		t.Errorf("incorrect instruction. expected=%d. got=%d", code.OpMultiply, last.OpCode)
+		t.Errorf("previousInstruction.Opcode wrong. got=%d, want=%d",
+			previous.OpCode, code.OpMultiply)
 	}
+}
+
+func TestCompiler_VariableScopes(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input: "var num = 100; fun() { return num }",
+			expectedConstants: []interface{}{
+				100,
+				[]code.Instructions{
+					code.Make(code.OpGetGlobal, 0),
+					code.Make(code.OpReturnValue),
+				},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: "fun() { var num = 100; return num }",
+			expectedConstants: []interface{}{
+				100,
+				[]code.Instructions{
+					code.Make(code.OpConstant, 0),
+					code.Make(code.OpSetLocal, 0),
+					code.Make(code.OpGetLocal, 0),
+					code.Make(code.OpReturnValue),
+				},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: "fun() { var a = 100; var b = 55; return a * b }",
+			expectedConstants: []interface{}{
+				100,
+				55,
+				[]code.Instructions{
+					code.Make(code.OpConstant, 0),
+					code.Make(code.OpSetLocal, 0),
+					code.Make(code.OpConstant, 1),
+					code.Make(code.OpSetLocal, 1),
+					code.Make(code.OpGetLocal, 0),
+					code.Make(code.OpGetLocal, 1),
+					code.Make(code.OpMultiply),
+					code.Make(code.OpReturnValue),
+				},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+
+	runCompilerTests(t, tests)
 }
 
 func testInstructions(

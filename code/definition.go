@@ -58,12 +58,18 @@ func ReadOperands(def *Definition, ins Instructions) ([]int, int) {
 		switch width {
 		case 2:
 			operands[i] = int(ReadUint16(ins[offset:]))
+		case 1:
+			operands[i] = int(ReadUint8(ins[offset:]))
 		}
 
 		offset += width
 	}
 
 	return operands, offset
+}
+
+func ReadUint8(ins Instructions) uint8 {
+	return ins[0]
 }
 
 func ReadUint16(ins Instructions) uint16 {
