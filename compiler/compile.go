@@ -5,6 +5,7 @@ import (
 	"github.com/looplanguage/compiler/code"
 	"github.com/looplanguage/loop/models/ast"
 	"github.com/looplanguage/loop/models/object"
+	"sort"
 )
 
 func (c *Compiler) Compile(node ast.Node) error {
@@ -152,6 +153,29 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		c.emit(code.OpArray, len(node.Elements))
+	case *ast.Hashmap:
+		keys := []ast.Expression{}
+		for k := range node.Values {
+			keys = append(keys, k)
+		}
+
+		// TODO: Change this for the tests, this affects compiler performance
+		sort.Slice(keys, func(i, j int) bool {
+			return keys[i].String() < keys[j].String()
+		})
+
+		for _, k := range keys {
+			err := c.Compile(k)
+			if err != nil {
+				return err
+			}
+			err = c.Compile(node.Values[k])
+			if err != nil {
+				return err
+			}
+		}
+
+		c.emit(code.OpHash, len(node.Values)*2)
 	}
 
 	return nil
