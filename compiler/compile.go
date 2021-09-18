@@ -18,6 +18,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 	case *ast.ExpressionStatement:
 		err := c.Compile(node.Expression)
+		fmt.Println(err)
 		if err != nil {
 			return err
 		}
@@ -125,6 +126,21 @@ func (c *Compiler) Compile(node ast.Node) error {
 				return err
 			}
 		}
+	case *ast.VariableDeclaration:
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+
+		symbol := c.symbolTable.Define(node.Identifier.Value)
+		c.emit(code.OpSetGlobal, symbol.Index)
+	case *ast.Identifier:
+		symbol, ok := c.symbolTable.Resolve(node.Value)
+		if !ok {
+			return fmt.Errorf("undefined variable %s", node.Value)
+		}
+
+		c.emit(code.OpGetGlobal, symbol.Index)
 	}
 
 	return nil

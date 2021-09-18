@@ -19,6 +19,8 @@ const (
 	OpJump
 	OpJumpIfNotTrue
 	OpNull
+	OpSetGlobal
+	OpGetGlobal
 )
 
 var definitions = map[OpCode]*Definition{
@@ -36,4 +38,6 @@ var definitions = map[OpCode]*Definition{
 	OpJump:          {"OpJump", []int{2}},
 	OpJumpIfNotTrue: {"OpJumpIfNotTrue", []int{2}},
 	OpNull:          {"OpNull", []int{}},
+	OpSetGlobal:     {"OpSetGlobal", []int{2}},
+	OpGetGlobal:     {"OpGetGlobal", []int{2}},
 }
