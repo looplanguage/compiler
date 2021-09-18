@@ -44,11 +44,11 @@ func (c *Compiler) currentInstructions() code.Instructions {
 }
 
 func CreateWithState(s *SymbolTable, constants []object.Object) *Compiler {
-	c := Create()
-	c.symbolTable = s
-	c.constants = constants
+	comp := Create()
+	comp.symbolTable = s
+	comp.constants = constants
 
-	return c
+	return comp
 }
 
 func (c *Compiler) addConstant(obj object.Object) int {
