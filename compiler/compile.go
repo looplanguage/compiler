@@ -153,6 +153,18 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		c.emit(code.OpArray, len(node.Elements))
+	case *ast.IndexExpression:
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+
+		err = c.Compile(node.Index)
+		if err != nil {
+			return err
+		}
+
+		c.emit(code.OpIndex)
 	case *ast.Hashmap:
 		keys := []ast.Expression{}
 		for k := range node.Values {
