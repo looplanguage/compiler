@@ -18,7 +18,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 	case *ast.ExpressionStatement:
 		err := c.Compile(node.Expression)
-		fmt.Println(err)
 		if err != nil {
 			return err
 		}

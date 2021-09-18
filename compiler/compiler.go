@@ -28,6 +28,14 @@ func Create() *Compiler {
 	}
 }
 
+func CreateWithState(s *SymbolTable, constants []object.Object) *Compiler {
+	c := Create()
+	c.symbolTable = s
+	c.constants = constants
+
+	return c
+}
+
 func (c *Compiler) replaceInstruction(pos int, newInstruction []byte) {
 	for i := 0; i < len(newInstruction); i++ {
 		c.instructions[pos+i] = newInstruction[i]
