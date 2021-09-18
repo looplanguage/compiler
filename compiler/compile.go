@@ -212,9 +212,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpReturn)
 		}
 
+		numLocals := c.symbolTable.numDefinitions
 		instructions := c.leaveScope()
 
-		compiledFunc := &object.CompiledFunction{Instructions: instructions}
+		compiledFunc := &object.CompiledFunction{Instructions: instructions, NumLocals: numLocals}
 		c.emit(code.OpConstant, c.addConstant(compiledFunc))
 	case *ast.Return:
 		err := c.Compile(node.Value)
