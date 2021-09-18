@@ -93,13 +93,13 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 
-		if c.lastInstructionIsPop() {
+		if c.lastInstructionIs(code.OpPop) {
 			c.removeLastPop()
 		}
 
 		jumpToEnd := c.emit(code.OpJump, 9999)
 
-		afterConsequencePos := len(c.instructions)
+		afterConsequencePos := len(c.currentInstructions())
 		c.changeOperand(jumpPos, afterConsequencePos)
 
 		if node.ElseCondition == nil && node.ElseStatement == nil {
@@ -110,7 +110,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 				return nil
 			}
 
-			if c.lastInstructionIsPop() {
+			if c.lastInstructionIs(code.OpPop) {
 				c.removeLastPop()
 			}
 		} else if node.ElseStatement != nil {
@@ -120,7 +120,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 
-		afterAlternativePos := len(c.instructions)
+		afterAlternativePos := len(c.currentInstructions())
 		c.changeOperand(jumpToEnd, afterAlternativePos)
 	case *ast.BlockStatement:
 		for _, s := range node.Statements {
@@ -188,43 +188,41 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		c.emit(code.OpHash, len(node.Values)*2)
+	case *ast.Function:
+		c.enterScope()
+
+		err := c.Compile(node.Body)
+		if err != nil {
+			return err
+		}
+
+		if c.lastInstructionIs(code.OpPop) {
+			c.replaceLastPopWithReturn()
+		}
+
+		if !c.lastInstructionIs(code.OpReturnValue) && !c.lastInstructionIs(code.OpReturn) {
+			c.emit(code.OpReturn)
+		}
+
+		instructions := c.leaveScope()
+
+		compiledFunc := &object.CompiledFunction{Instructions: instructions}
+		c.emit(code.OpConstant, c.addConstant(compiledFunc))
+	case *ast.Return:
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+
+		c.emit(code.OpReturnValue)
+	case *ast.CallExpression:
+		err := c.Compile(node.Function)
+		if err != nil {
+			return err
+		}
+
+		c.emit(code.OpCall)
 	}
 
 	return nil
-}
-
-func (c *Compiler) addConstant(obj object.Object) int {
-	c.constants = append(c.constants, obj)
-	return len(c.constants) - 1
-}
-
-func (c *Compiler) emit(op code.OpCode, operands ...int) int {
-	ins := code.Make(op, operands...)
-	pos := c.addInstruction(ins)
-
-	c.setLastInstruction(op, pos)
-
-	return pos
-}
-
-func (c *Compiler) lastInstructionIsPop() bool {
-	return c.lastInstruction.OpCode == code.OpPop
-}
-
-func (c *Compiler) removeLastPop() {
-	c.instructions = c.instructions[:c.lastInstruction.Position]
-	c.lastInstruction = c.previousInstruction
-}
-
-func (c *Compiler) setLastInstruction(op code.OpCode, pos int) {
-	previous := c.lastInstruction
-	last := EmittedInstruction{OpCode: op, Position: pos}
-	c.previousInstruction = previous
-	c.lastInstruction = last
-}
-
-func (c *Compiler) addInstruction(ins []byte) int {
-	position := len(c.instructions)
-	c.instructions = append(c.instructions, ins...)
-	return position
 }
