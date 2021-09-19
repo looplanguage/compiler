@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"encoding/gob"
 	"github.com/looplanguage/compiler/code"
 	"github.com/looplanguage/loop/models/object"
 )
@@ -178,4 +179,10 @@ func (c *Compiler) leaveScope() code.Instructions {
 type Bytecode struct {
 	Instructions code.Instructions
 	Constants    []object.Object
+}
+
+func RegisterGobTypes() {
+	gob.Register(&object.String{})
+	gob.Register(&object.Integer{})
+	gob.Register(&object.CompiledFunction{})
 }

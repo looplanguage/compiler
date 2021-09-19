@@ -48,12 +48,18 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	var compiled bytes2.Buffer
-	enc := gob.NewEncoder(&compiled)
+	compiler.RegisterGobTypes()
 
-	enc.Encode(comp.Bytecode())
+	var constantBytes bytes2.Buffer
 
-	ioutil.WriteFile(filepath.Dir(os.Args[1])+"/"+fileNameWithoutExtension(filepath.Base(os.Args[1]))+".lpx", compiled.Bytes(), 0644)
+	enc := gob.NewEncoder(&constantBytes)
+	err = enc.Encode(comp.Bytecode())
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ioutil.WriteFile(filepath.Dir(os.Args[1])+"/"+fileNameWithoutExtension(filepath.Base(os.Args[1]))+".lpx", constantBytes.Bytes(), 0644)
 }
 
 func fileNameWithoutExtension(fileName string) string {
