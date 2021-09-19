@@ -687,6 +687,69 @@ func TestCompiler_VariableScopes(t *testing.T) {
 	runCompilerTests(t, tests)
 }
 
+func TestCompiler_BuiltinFunctions(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input:             `len([])`,
+			expectedConstants: []interface{}{},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpGetBuiltinFunction, 0),
+				code.Make(code.OpArray, 0),
+				code.Make(code.OpCall, 1),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: `fun() { return len([]) }`,
+			expectedConstants: []interface{}{
+				[]code.Instructions{
+					code.Make(code.OpGetBuiltinFunction, 0),
+					code.Make(code.OpArray, 0),
+					code.Make(code.OpCall, 1),
+					code.Make(code.OpReturnValue),
+				},
+			},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+
+	runCompilerTests(t, tests)
+}
+
+func TestCompiler_DefineBuiltins(t *testing.T) {
+	global := CreateSymbolTable()
+	firstLocal := CreateEnclosedSymbolTable(global)
+	secondLocal := CreateEnclosedSymbolTable(firstLocal)
+
+	expected := []Symbol{
+		{Name: "a", Scope: BuiltinScope, Index: 0},
+		{Name: "b", Scope: BuiltinScope, Index: 1},
+		{Name: "e", Scope: BuiltinScope, Index: 2},
+		{Name: "f", Scope: BuiltinScope, Index: 3},
+	}
+
+	for i, v := range expected {
+		global.DefineBuiltin(i, v.Name)
+	}
+
+	for _, table := range []*SymbolTable{global, firstLocal, secondLocal} {
+		for _, sym := range expected {
+			result, ok := table.Resolve(sym.Name)
+			if !ok {
+				t.Errorf("name %s not resolable", sym.Name)
+				continue
+			}
+
+			if result != sym {
+				t.Errorf("wrong symbol (%s). expected=%+v. got=%+v", sym.Name, sym, result)
+			}
+		}
+	}
+}
+
 func testInstructions(
 	expected []code.Instructions,
 	actual code.Instructions,

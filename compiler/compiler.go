@@ -31,9 +31,15 @@ func Create() *Compiler {
 		previousInstruction: EmittedInstruction{},
 	}
 
+	symbolTable := CreateSymbolTable()
+
+	for i, value := range object.Builtins {
+		symbolTable.DefineBuiltin(i, value.Name)
+	}
+
 	return &Compiler{
 		constants:   []object.Object{},
-		symbolTable: CreateSymbolTable(),
+		symbolTable: symbolTable,
 		scopes:      []CompilationScope{globalScope},
 		scopeIndex:  0,
 	}
@@ -41,6 +47,17 @@ func Create() *Compiler {
 
 func (c *Compiler) currentInstructions() code.Instructions {
 	return c.scopes[c.scopeIndex].instructions
+}
+
+func (c *Compiler) loadSymbol(s Symbol) {
+	switch s.Scope {
+	case GlobalScope:
+		c.emit(code.OpGetGlobal, s.Index)
+	case LocalScope:
+		c.emit(code.OpGetLocal, s.Index)
+	case BuiltinScope:
+		c.emit(code.OpGetBuiltinFunction, s.Index)
+	}
 }
 
 func CreateWithState(s *SymbolTable, constants []object.Object) *Compiler {
