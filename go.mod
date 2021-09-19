@@ -2,4 +2,4 @@ module github.com/looplanguage/compiler
 
 go 1.17
 
-require github.com/looplanguage/loop v0.3.2
+require github.com/looplanguage/loop v0.4.0
