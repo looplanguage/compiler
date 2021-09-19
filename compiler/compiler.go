@@ -70,6 +70,10 @@ func CreateWithState(s *SymbolTable, constants []object.Object) *Compiler {
 	return comp
 }
 
+func (c *Compiler) compileToFile(path string) {
+
+}
+
 func (c *Compiler) addConstant(obj object.Object) int {
 	c.constants = append(c.constants, obj)
 	return len(c.constants) - 1
