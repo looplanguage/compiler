@@ -130,12 +130,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 	case *ast.VariableDeclaration:
+		symbol := c.symbolTable.Define(node.Identifier.Value)
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
 		}
 
-		symbol := c.symbolTable.Define(node.Identifier.Value)
 		if symbol.Scope == GlobalScope {
 			c.emit(code.OpSetGlobal, symbol.Index)
 		} else {
@@ -212,11 +212,21 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpReturn)
 		}
 
+		freeSymbols := c.symbolTable.FreeSymbols
 		numLocals := c.symbolTable.numDefinitions
 		instructions := c.leaveScope()
 
-		compiledFunc := &object.CompiledFunction{Instructions: instructions, NumLocals: numLocals, NumParameters: len(node.Parameters)}
-		c.emit(code.OpConstant, c.addConstant(compiledFunc))
+		for _, s := range freeSymbols {
+			c.loadSymbol(s)
+		}
+
+		compiledFunc := &object.CompiledFunction{
+			Instructions:  instructions,
+			NumLocals:     numLocals,
+			NumParameters: len(node.Parameters),
+		}
+
+		c.emit(code.OpClosure, c.addConstant(compiledFunc), len(freeSymbols))
 	case *ast.Return:
 		err := c.Compile(node.Value)
 		if err != nil {
