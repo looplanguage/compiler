@@ -80,6 +80,23 @@ func (c *Compiler) Compile(node ast.Node) error {
 		case false:
 			c.emit(code.OpFalse)
 		}
+	case *ast.While:
+		startPos := len(c.currentInstructions())
+		err := c.Compile(node.Condition)
+		if err != nil {
+			return err
+		}
+
+		jumpPos := c.emit(code.OpJumpIfNotTrue, 9999)
+
+		err = c.Compile(node.Block)
+		if err != nil {
+			return err
+		}
+
+		c.emit(code.OpJump, startPos)
+		c.changeOperand(jumpPos, len(c.currentInstructions()))
+		c.emit(code.OpNull)
 	case *ast.ConditionalStatement:
 		err := c.Compile(node.Condition)
 		if err != nil {
@@ -121,7 +138,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		afterAlternativePos := len(c.currentInstructions())
-		c.changeOperand(jumpToEnd, afterAlternativePos)
+		c.changeOperand(jumpToEnd, afterAlternativePos-1)
 	case *ast.BlockStatement:
 		for _, s := range node.Statements {
 			err := c.Compile(s)
@@ -131,10 +148,32 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 	case *ast.VariableDeclaration:
 		symbol := c.symbolTable.Define(node.Identifier.Value)
+
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
 		}
+
+		if symbol.Scope == GlobalScope {
+			c.emit(code.OpSetGlobal, symbol.Index)
+		} else {
+			c.emit(code.OpSetLocal, symbol.Index)
+		}
+	case *ast.Assign:
+		symbol, found := c.symbolTable.Resolve(node.Identifier.Value)
+
+		if !found {
+			return fmt.Errorf("undefined variable %s", node.Value)
+		}
+
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+
+		// OpGetGlobal 0
+		// OpConstant
+		//
 
 		if symbol.Scope == GlobalScope {
 			c.emit(code.OpSetGlobal, symbol.Index)
