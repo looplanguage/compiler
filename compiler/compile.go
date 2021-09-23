@@ -94,9 +94,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 
+		if !c.lastInstructionIs(code.OpReturnValue) {
+			c.emit(code.OpNull)
+		}
+
 		c.emit(code.OpJump, startPos)
 		c.changeOperand(jumpPos, len(c.currentInstructions()))
-		c.emit(code.OpNull)
 	case *ast.ConditionalStatement:
 		err := c.Compile(node.Condition)
 		if err != nil {
@@ -137,7 +140,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 
-		afterAlternativePos := len(c.currentInstructions()) - 1
+		afterAlternativePos := len(c.currentInstructions())
 		c.changeOperand(jumpToEnd, afterAlternativePos)
 	case *ast.BlockStatement:
 		c.currentScope = c.deeperScope()
