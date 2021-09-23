@@ -137,50 +137,36 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 
-		afterAlternativePos := len(c.currentInstructions())
+		afterAlternativePos := len(c.currentInstructions()) - 1
 		c.changeOperand(jumpToEnd, afterAlternativePos)
 	case *ast.BlockStatement:
-		c.VariableScope = append(c.VariableScope,
-			VariableScope{
-				Variables: []Variable{},
-				Outer:     &c.VariableScope[c.variableScopeIndex],
-			})
-
-		c.variableScopeIndex++
+		c.currentScope = c.deeperScope()
 		for _, s := range node.Statements {
 			err := c.Compile(s)
 			if err != nil {
 				return err
 			}
 		}
-		c.variableScopeIndex--
+		c.currentScope = c.currentScope.Outer
 	case *ast.VariableDeclaration:
-		if len(c.VariableScope) < c.variableScopeIndex+1 {
-			if c.variableScopeIndex != 0 && len(c.VariableScope) > c.variableScopeIndex-1 {
-				c.VariableScope = append(c.VariableScope, VariableScope{
-					Variables: []Variable{{Name: node.Identifier.Value, Object: &object.Null{}, Index: 0, Scope: c.variableScopeIndex}},
-					Outer:     &c.VariableScope[c.variableScopeIndex-1],
-				})
-			} else {
-				c.VariableScope = append(c.VariableScope, VariableScope{
-					Variables: []Variable{{Name: node.Identifier.Value, Object: &object.Null{}, Index: 0, Scope: c.variableScopeIndex}},
-					Outer:     nil,
-				})
-			}
-		} else {
-			c.VariableScope[c.variableScopeIndex].Variables = append(c.VariableScope[c.variableScopeIndex].Variables, Variable{Name: node.Identifier.Value, Object: &object.Null{}, Index: len(c.VariableScope[c.variableScopeIndex].Variables), Scope: c.variableScopeIndex})
+		index := c.variables
+
+		c.currentScope.Variables[index] = Variable{
+			Name:   node.Identifier.Value,
+			Index:  index,
+			Object: &object.Null{},
 		}
 
-		index := len(c.VariableScope[c.variableScopeIndex].Variables) - 1
+		c.variables++
 
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
 		}
 
-		c.emit(code.OpSetVar, c.variableScopeIndex, index)
+		c.emit(code.OpSetVar, index)
 	case *ast.Assign:
-		variable := c.VariableScope[c.variableScopeIndex-1].FindByName(node.Identifier.Value)
+		variable := c.currentScope.FindByName(node.Identifier.Value)
 
 		if variable == nil {
 			return fmt.Errorf("undefined variable %s", node.Identifier.Value)
@@ -191,36 +177,19 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return err
 		}
 
-		c.emit(code.OpSetVar, 0, variable.Index)
+		c.emit(code.OpSetVar, variable.Index)
 	case *ast.Identifier:
-		fmt.Println(c.variableScopeIndex)
-		if len(c.VariableScope)-1 > c.variableScopeIndex {
-			variable := c.VariableScope[c.variableScopeIndex].FindByName(node.Value)
+		variable := c.currentScope.FindByName(node.Value)
 
-			if variable == nil {
-				return fmt.Errorf("(scope) undefined variable %s", node.Value)
-			}
-
-			c.emit(code.OpGetVar, c.variableScopeIndex, variable.Index)
+		if variable != nil {
+			c.emit(code.OpGetVar, variable.Index)
 		} else {
-			variable := c.VariableScope[c.variableScopeIndex].FindByName(node.Value)
-
-			if variable == nil {
-				return fmt.Errorf("(root) undefined variable %s", node.Value)
-			}
-
-			c.emit(code.OpGetVar, c.variableScopeIndex, variable.Index)
-		}
-
-		/*
-			symbol, ok := c.symbolTable.Resolve(node.Value)
-
-			if !ok {
+			if symbol, ok := c.symbolTable.Resolve(node.Value); ok {
+				c.loadSymbol(symbol)
+			} else {
 				return fmt.Errorf("undefined variable %s", node.Value)
 			}
-
-			c.loadSymbol(symbol)
-		*/
+		}
 	case *ast.Array:
 		for _, element := range node.Elements {
 			err := c.Compile(element)

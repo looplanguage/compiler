@@ -20,7 +20,7 @@ type Variable struct {
 }
 
 type VariableScope struct {
-	Variables []Variable
+	Variables map[int]Variable
 	Outer     *VariableScope
 }
 
@@ -42,11 +42,13 @@ type Compiler struct {
 	constants   []object.Object
 	symbolTable *SymbolTable
 
-	VariableScope      []VariableScope
-	variableScopeIndex int
+	VariableScopes []VariableScope
+	currentScope   *VariableScope
 
 	scopes     []CompilationScope
 	scopeIndex int
+
+	variables int
 }
 
 type EmittedInstruction struct {
@@ -72,13 +74,18 @@ func Create() *Compiler {
 		symbolTable: symbolTable,
 		scopes:      []CompilationScope{globalScope},
 		scopeIndex:  0,
-		VariableScope: []VariableScope{
-			{
-				Variables: []Variable{},
-				Outer:     nil,
-			},
+		variables:   0,
+		currentScope: &VariableScope{
+			Variables: map[int]Variable{},
+			Outer:     nil,
 		},
-		variableScopeIndex: 0,
+	}
+}
+
+func (c *Compiler) deeperScope() *VariableScope {
+	return &VariableScope{
+		Variables: map[int]Variable{},
+		Outer:     c.currentScope,
 	}
 }
 
@@ -192,7 +199,6 @@ func (c *Compiler) Bytecode() *Bytecode {
 	return &Bytecode{
 		Instructions: c.currentInstructions(),
 		Constants:    c.constants,
-		Variables:    c.VariableScope,
 	}
 }
 

@@ -66,6 +66,6 @@ var definitions = map[OpCode]*Definition{
 	OpClosure:            {"OpClosure", []int{2, 1}},
 	OpGetFree:            {"OpGetFree", []int{1}},
 
-	OpSetVar: {"OpSetVar", []int{2, 2}},
-	OpGetVar: {"OpGetVar", []int{2, 2}},
+	OpSetVar: {"OpSetVar", []int{2}},
+	OpGetVar: {"OpGetVar", []int{2}},
 }
