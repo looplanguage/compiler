@@ -32,6 +32,9 @@ const (
 	OpGetBuiltinFunction
 	OpClosure
 	OpGetFree
+
+	OpSetVar
+	OpGetVar
 )
 
 var definitions = map[OpCode]*Definition{
@@ -62,4 +65,7 @@ var definitions = map[OpCode]*Definition{
 	OpGetBuiltinFunction: {"OpGetBuiltinFunction", []int{1}},
 	OpClosure:            {"OpClosure", []int{2, 1}},
 	OpGetFree:            {"OpGetFree", []int{1}},
+
+	OpSetVar: {"OpSetVar", []int{2}},
+	OpGetVar: {"OpGetVar", []int{2}},
 }

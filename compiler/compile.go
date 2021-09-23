@@ -80,6 +80,26 @@ func (c *Compiler) Compile(node ast.Node) error {
 		case false:
 			c.emit(code.OpFalse)
 		}
+	case *ast.While:
+		startPos := len(c.currentInstructions())
+		err := c.Compile(node.Condition)
+		if err != nil {
+			return err
+		}
+
+		jumpPos := c.emit(code.OpJumpIfNotTrue, 9999)
+
+		err = c.Compile(node.Block)
+		if err != nil {
+			return err
+		}
+
+		if !c.lastInstructionIs(code.OpReturnValue) {
+			c.emit(code.OpNull)
+		}
+
+		c.emit(code.OpJump, startPos)
+		c.changeOperand(jumpPos, len(c.currentInstructions()))
 	case *ast.ConditionalStatement:
 		err := c.Compile(node.Condition)
 		if err != nil {
@@ -123,31 +143,56 @@ func (c *Compiler) Compile(node ast.Node) error {
 		afterAlternativePos := len(c.currentInstructions())
 		c.changeOperand(jumpToEnd, afterAlternativePos)
 	case *ast.BlockStatement:
+		c.currentScope = c.deeperScope()
 		for _, s := range node.Statements {
 			err := c.Compile(s)
 			if err != nil {
 				return err
 			}
 		}
+		c.currentScope = c.currentScope.Outer
 	case *ast.VariableDeclaration:
-		symbol := c.symbolTable.Define(node.Identifier.Value)
+		index := c.variables
+
+		c.currentScope.Variables[index] = Variable{
+			Name:   node.Identifier.Value,
+			Index:  index,
+			Object: &object.Null{},
+		}
+
+		c.variables++
+
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
 		}
 
-		if symbol.Scope == GlobalScope {
-			c.emit(code.OpSetGlobal, symbol.Index)
-		} else {
-			c.emit(code.OpSetLocal, symbol.Index)
-		}
-	case *ast.Identifier:
-		symbol, ok := c.symbolTable.Resolve(node.Value)
-		if !ok {
-			return fmt.Errorf("undefined variable %s", node.Value)
+		c.emit(code.OpSetVar, index)
+	case *ast.Assign:
+		variable := c.currentScope.FindByName(node.Identifier.Value)
+
+		if variable == nil {
+			return fmt.Errorf("undefined variable %s", node.Identifier.Value)
 		}
 
-		c.loadSymbol(symbol)
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+
+		c.emit(code.OpSetVar, variable.Index)
+	case *ast.Identifier:
+		variable := c.currentScope.FindByName(node.Value)
+
+		if variable != nil {
+			c.emit(code.OpGetVar, variable.Index)
+		} else {
+			if symbol, ok := c.symbolTable.Resolve(node.Value); ok {
+				c.loadSymbol(symbol)
+			} else {
+				return fmt.Errorf("undefined variable %s", node.Value)
+			}
+		}
 	case *ast.Array:
 		for _, element := range node.Elements {
 			err := c.Compile(element)

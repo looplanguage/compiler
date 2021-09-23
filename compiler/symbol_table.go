@@ -49,6 +49,11 @@ func (s *SymbolTable) Define(name string) Symbol {
 
 	if s.Outer == nil {
 		symbol.Scope = GlobalScope
+
+		if _, exists := s.store[name]; exists {
+			return s.store[name]
+		}
+
 	} else {
 		symbol.Scope = LocalScope
 	}

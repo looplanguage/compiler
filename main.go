@@ -3,30 +3,30 @@ package main
 import (
 	bytes2 "bytes"
 	"encoding/gob"
+	"flag"
 	"fmt"
 	"github.com/looplanguage/compiler/compiler"
 	"github.com/looplanguage/loop/lexer"
 	"github.com/looplanguage/loop/parser"
 	"io/ioutil"
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Println("not enough arguments. specify filename to compile.")
-		return
-	}
+	debugPtr := flag.Bool("debug", false, "Enables printing of bytecode")
+	flag.Parse()
 
-	bytes, err := ioutil.ReadFile(os.Args[1])
+	file := flag.Arg(0)
+
+	bytes, err := ioutil.ReadFile(file)
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	fmt.Println(fmt.Sprintf("compiling %q", os.Args[1]))
+	fmt.Println(fmt.Sprintf("compiling %q", file))
 
 	fileContent := string(bytes)
 
@@ -59,7 +59,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ioutil.WriteFile(filepath.Dir(os.Args[1])+"/"+fileNameWithoutExtension(filepath.Base(os.Args[1]))+".lpx", constantBytes.Bytes(), 0644)
+	dir := filepath.Dir(file) + "/" + fileNameWithoutExtension(filepath.Base(file)) + ".lpx"
+
+	if *debugPtr {
+		fmt.Println(comp.Bytecode().Instructions.String())
+	}
+
+	err = ioutil.WriteFile(dir, constantBytes.Bytes(), 0644)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(fmt.Sprintf("successfully compiled %q to %q", file, dir))
 }
 
 func fileNameWithoutExtension(fileName string) string {

@@ -16,6 +16,11 @@ type compilerTestCase struct {
 	expectedInstructions []code.Instructions
 }
 
+type compilerTestCaseError struct {
+	input    string
+	expected string
+}
+
 func TestIntegerArithmetic(t *testing.T) {
 	tests := []compilerTestCase{
 		{
@@ -191,6 +196,112 @@ func TestCompiler_Conditionals(t *testing.T) {
 	runCompilerTests(t, tests)
 }
 
+func TestCompiler_VariableScope(t *testing.T) {
+	tests := []compilerTestCaseError{
+		{
+			input: `
+			if(true) {
+				x
+			}
+			`,
+			expected: "undefined variable x",
+		},
+		{
+			input: `
+			var x = 10
+			if(true) {
+				x
+			}
+			`,
+			expected: "",
+		},
+		{
+			input: `
+			var x = 10
+			if(true) {
+				if(true) {
+					x
+				}
+			}
+			`,
+			expected: "",
+		},
+		{
+			input: `
+			if(true) {
+				var x = 10
+			}
+			x
+			`,
+			expected: "undefined variable x",
+		},
+		{
+			input: `
+			var x = 10
+			if(true) {
+				var y = 40
+				if(true) {
+					x
+				}
+				
+				if(true) {
+					if(true) {
+						x; y;
+					}
+				}
+			}
+			`,
+			expected: "",
+		},
+		{
+			input: `
+			var x = 10
+			if(true) {
+				if(true) {
+					var y = 40
+					x
+				}
+				
+				if(true) {
+					if(true) {
+						x; y;
+					}
+				}
+			}
+			`,
+			expected: "undefined variable y",
+		},
+	}
+
+	runCompilerTestsErrors(t, tests)
+}
+
+/*
+	Helper Functions
+*/
+
+func runCompilerTestsErrors(t *testing.T, tests []compilerTestCaseError) {
+	t.Helper()
+
+	i := 0
+	for _, tc := range tests {
+		i++
+		program := parse(tc.input)
+
+		compiler := Create()
+
+		err := compiler.Compile(program)
+
+		if err == nil && tc.expected != "" {
+			t.Fatalf("incorrect error. got=%q. expected=%q", err, tc.expected)
+		}
+
+		if err != nil && err.Error() != tc.expected {
+			t.Fatalf("incorrect error. got=%q. expected=%q", err, tc.expected)
+		}
+	}
+}
+
 func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 	t.Helper()
 
@@ -230,9 +341,9 @@ func TestCompiler_VariableStatements(t *testing.T) {
 			expectedConstants: []interface{}{1, 2},
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpConstant, 0),
-				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpSetVar, 0),
 				code.Make(code.OpConstant, 1),
-				code.Make(code.OpSetGlobal, 1),
+				code.Make(code.OpSetVar, 1),
 			},
 		},
 		{
@@ -240,8 +351,8 @@ func TestCompiler_VariableStatements(t *testing.T) {
 			expectedConstants: []interface{}{1},
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpConstant, 0),
-				code.Make(code.OpSetGlobal, 0),
-				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpSetVar, 0),
+				code.Make(code.OpGetVar, 0),
 				code.Make(code.OpPop),
 			},
 		},
@@ -250,10 +361,10 @@ func TestCompiler_VariableStatements(t *testing.T) {
 			expectedConstants: []interface{}{1},
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpConstant, 0),
-				code.Make(code.OpSetGlobal, 0),
-				code.Make(code.OpGetGlobal, 0),
-				code.Make(code.OpSetGlobal, 1),
-				code.Make(code.OpGetGlobal, 1),
+				code.Make(code.OpSetVar, 0),
+				code.Make(code.OpGetVar, 0),
+				code.Make(code.OpSetVar, 1),
+				code.Make(code.OpGetVar, 1),
 				code.Make(code.OpPop),
 			},
 		},
@@ -520,8 +631,8 @@ func TestCompiler_CallExpression(t *testing.T) {
 			},
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpClosure, 1, 0),
-				code.Make(code.OpSetGlobal, 0),
-				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpSetVar, 0),
+				code.Make(code.OpGetVar, 0),
 				code.Make(code.OpCall, 0),
 				code.Make(code.OpPop),
 			},
@@ -537,8 +648,8 @@ func TestCompiler_CallExpression(t *testing.T) {
 			},
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpClosure, 0, 0),
-				code.Make(code.OpSetGlobal, 0),
-				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpSetVar, 0),
+				code.Make(code.OpGetVar, 0),
 				code.Make(code.OpConstant, 1),
 				code.Make(code.OpCall, 1),
 				code.Make(code.OpPop),
@@ -561,8 +672,8 @@ func TestCompiler_CallExpression(t *testing.T) {
 			},
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpClosure, 0, 0),
-				code.Make(code.OpSetGlobal, 0),
-				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpSetVar, 0),
+				code.Make(code.OpGetVar, 0),
 				code.Make(code.OpConstant, 1),
 				code.Make(code.OpConstant, 2),
 				code.Make(code.OpConstant, 3),
@@ -660,35 +771,32 @@ func TestCompiler_Closures(t *testing.T) {
 				88,
 				[]code.Instructions{
 					code.Make(code.OpConstant, 3),
-					code.Make(code.OpSetLocal, 0),
-					code.Make(code.OpGetGlobal, 0),
-					code.Make(code.OpGetFree, 0),
+					code.Make(code.OpSetVar, 3),
+					code.Make(code.OpGetVar, 0),
+					code.Make(code.OpGetVar, 1),
 					code.Make(code.OpAdd),
-					code.Make(code.OpGetFree, 1),
+					code.Make(code.OpGetVar, 2),
 					code.Make(code.OpAdd),
-					code.Make(code.OpGetLocal, 0),
+					code.Make(code.OpGetVar, 3),
 					code.Make(code.OpAdd),
 					code.Make(code.OpReturnValue),
 				},
 				[]code.Instructions{
 					code.Make(code.OpConstant, 2),
-					code.Make(code.OpSetLocal, 0),
-					code.Make(code.OpGetFree, 0),
-					code.Make(code.OpGetLocal, 0),
-					code.Make(code.OpClosure, 4, 2),
+					code.Make(code.OpSetVar, 2),
+					code.Make(code.OpClosure, 4, 0),
 					code.Make(code.OpReturnValue),
 				},
 				[]code.Instructions{
 					code.Make(code.OpConstant, 1),
-					code.Make(code.OpSetLocal, 0),
-					code.Make(code.OpGetLocal, 0),
-					code.Make(code.OpClosure, 5, 1),
+					code.Make(code.OpSetVar, 1),
+					code.Make(code.OpClosure, 5, 0),
 					code.Make(code.OpReturnValue),
 				},
 			},
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpConstant, 0),
-				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpSetVar, 0),
 				code.Make(code.OpClosure, 6, 0),
 				code.Make(code.OpPop),
 			},
@@ -757,13 +865,13 @@ func TestCompiler_VariableScopes(t *testing.T) {
 			expectedConstants: []interface{}{
 				100,
 				[]code.Instructions{
-					code.Make(code.OpGetGlobal, 0),
+					code.Make(code.OpGetVar, 0),
 					code.Make(code.OpReturnValue),
 				},
 			},
 			expectedInstructions: []code.Instructions{
 				code.Make(code.OpConstant, 0),
-				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpSetVar, 0),
 				code.Make(code.OpClosure, 1, 0),
 				code.Make(code.OpPop),
 			},
@@ -774,8 +882,8 @@ func TestCompiler_VariableScopes(t *testing.T) {
 				100,
 				[]code.Instructions{
 					code.Make(code.OpConstant, 0),
-					code.Make(code.OpSetLocal, 0),
-					code.Make(code.OpGetLocal, 0),
+					code.Make(code.OpSetVar, 0),
+					code.Make(code.OpGetVar, 0),
 					code.Make(code.OpReturnValue),
 				},
 			},
@@ -791,11 +899,11 @@ func TestCompiler_VariableScopes(t *testing.T) {
 				55,
 				[]code.Instructions{
 					code.Make(code.OpConstant, 0),
-					code.Make(code.OpSetLocal, 0),
+					code.Make(code.OpSetVar, 0),
 					code.Make(code.OpConstant, 1),
-					code.Make(code.OpSetLocal, 1),
-					code.Make(code.OpGetLocal, 0),
-					code.Make(code.OpGetLocal, 1),
+					code.Make(code.OpSetVar, 1),
+					code.Make(code.OpGetVar, 0),
+					code.Make(code.OpGetVar, 1),
 					code.Make(code.OpMultiply),
 					code.Make(code.OpReturnValue),
 				},
