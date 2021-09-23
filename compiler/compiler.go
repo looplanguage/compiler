@@ -12,9 +12,38 @@ type CompilationScope struct {
 	previousInstruction EmittedInstruction
 }
 
+type Variable struct {
+	Name   string
+	Index  int
+	Scope  int
+	Object object.Object
+}
+
+type VariableScope struct {
+	Variables []Variable
+	Outer     *VariableScope
+}
+
+func (vs *VariableScope) FindByName(name string) *Variable {
+	for _, v := range vs.Variables {
+		if v.Name == name {
+			return &v
+		}
+	}
+
+	if vs.Outer != nil {
+		return vs.Outer.FindByName(name)
+	}
+
+	return nil
+}
+
 type Compiler struct {
 	constants   []object.Object
 	symbolTable *SymbolTable
+
+	VariableScope      []VariableScope
+	variableScopeIndex int
 
 	scopes     []CompilationScope
 	scopeIndex int
@@ -43,6 +72,13 @@ func Create() *Compiler {
 		symbolTable: symbolTable,
 		scopes:      []CompilationScope{globalScope},
 		scopeIndex:  0,
+		VariableScope: []VariableScope{
+			{
+				Variables: []Variable{},
+				Outer:     nil,
+			},
+		},
+		variableScopeIndex: 0,
 	}
 }
 
@@ -61,6 +97,20 @@ func (c *Compiler) loadSymbol(s Symbol) {
 	case FreeScope:
 		c.emit(code.OpGetFree, s.Index)
 	}
+}
+
+func (s *SymbolTable) GetAllVariables(current map[string]Symbol) map[string]Symbol {
+	returnVal := current
+
+	for k, v := range s.store {
+		returnVal[k] = v
+	}
+
+	if s.Outer != nil {
+		return s.Outer.GetAllVariables(returnVal)
+	}
+
+	return returnVal
 }
 
 func CreateWithState(s *SymbolTable, constants []object.Object) *Compiler {
@@ -142,6 +192,7 @@ func (c *Compiler) Bytecode() *Bytecode {
 	return &Bytecode{
 		Instructions: c.currentInstructions(),
 		Constants:    c.constants,
+		Variables:    c.VariableScope,
 	}
 }
 
@@ -179,10 +230,12 @@ func (c *Compiler) leaveScope() code.Instructions {
 type Bytecode struct {
 	Instructions code.Instructions
 	Constants    []object.Object
+	Variables    []VariableScope
 }
 
 func RegisterGobTypes() {
 	gob.Register(&object.String{})
 	gob.Register(&object.Integer{})
 	gob.Register(&object.CompiledFunction{})
+	gob.Register(&object.Null{})
 }

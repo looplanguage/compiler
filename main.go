@@ -59,6 +59,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	//fmt.Println(comp.Bytecode().Instructions.String())
+
 	ioutil.WriteFile(filepath.Dir(os.Args[1])+"/"+fileNameWithoutExtension(filepath.Base(os.Args[1]))+".lpx", constantBytes.Bytes(), 0644)
 }
 
