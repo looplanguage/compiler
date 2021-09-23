@@ -16,6 +16,11 @@ type compilerTestCase struct {
 	expectedInstructions []code.Instructions
 }
 
+type compilerTestCaseError struct {
+	input    string
+	expected string
+}
+
 func TestIntegerArithmetic(t *testing.T) {
 	tests := []compilerTestCase{
 		{
@@ -189,6 +194,112 @@ func TestCompiler_Conditionals(t *testing.T) {
 	}
 
 	runCompilerTests(t, tests)
+}
+
+func TestCompiler_VariableScope(t *testing.T) {
+	tests := []compilerTestCaseError{
+		{
+			input: `
+			if(true) {
+				x
+			}
+			`,
+			expected: "undefined variable x",
+		},
+		{
+			input: `
+			var x = 10
+			if(true) {
+				x
+			}
+			`,
+			expected: "",
+		},
+		{
+			input: `
+			var x = 10
+			if(true) {
+				if(true) {
+					x
+				}
+			}
+			`,
+			expected: "",
+		},
+		{
+			input: `
+			if(true) {
+				var x = 10
+			}
+			x
+			`,
+			expected: "undefined variable x",
+		},
+		{
+			input: `
+			var x = 10
+			if(true) {
+				var y = 40
+				if(true) {
+					x
+				}
+				
+				if(true) {
+					if(true) {
+						x; y;
+					}
+				}
+			}
+			`,
+			expected: "",
+		},
+		{
+			input: `
+			var x = 10
+			if(true) {
+				if(true) {
+					var y = 40
+					x
+				}
+				
+				if(true) {
+					if(true) {
+						x; y;
+					}
+				}
+			}
+			`,
+			expected: "undefined variable y",
+		},
+	}
+
+	runCompilerTestsErrors(t, tests)
+}
+
+/*
+	Helper Functions
+*/
+
+func runCompilerTestsErrors(t *testing.T, tests []compilerTestCaseError) {
+	t.Helper()
+
+	i := 0
+	for _, tc := range tests {
+		i++
+		program := parse(tc.input)
+
+		compiler := Create()
+
+		err := compiler.Compile(program)
+
+		if err == nil && tc.expected != "" {
+			t.Fatalf("incorrect error. got=%q. expected=%q", err, tc.expected)
+		}
+
+		if err != nil && err.Error() != tc.expected {
+			t.Fatalf("incorrect error. got=%q. expected=%q", err, tc.expected)
+		}
+	}
 }
 
 func runCompilerTests(t *testing.T, tests []compilerTestCase) {
