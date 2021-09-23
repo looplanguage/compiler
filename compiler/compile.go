@@ -256,7 +256,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		freeSymbols := c.symbolTable.FreeSymbols
 		numLocals := c.symbolTable.numDefinitions
-		fmt.Println(c.Bytecode().Instructions.String())
 		instructions := c.leaveScope()
 
 		for _, s := range freeSymbols {

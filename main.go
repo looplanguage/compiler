@@ -59,11 +59,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//fmt.Println(comp.Bytecode().Instructions.String())
+	dir := filepath.Dir(os.Args[1]) + "/" + fileNameWithoutExtension(filepath.Base(os.Args[1])) + ".lpx"
 
-	fmt.Println(comp.Bytecode().Instructions.String())
+	err = ioutil.WriteFile(dir, constantBytes.Bytes(), 0644)
 
-	ioutil.WriteFile(filepath.Dir(os.Args[1])+"/"+fileNameWithoutExtension(filepath.Base(os.Args[1]))+".lpx", constantBytes.Bytes(), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(fmt.Sprintf("successfully compiled %q to %q", os.Args[1], dir))
 }
 
 func fileNameWithoutExtension(fileName string) string {
