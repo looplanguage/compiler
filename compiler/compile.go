@@ -8,6 +8,8 @@ import (
 	"sort"
 )
 
+var jumpReturns []*int
+
 func (c *Compiler) Compile(node ast.Node) error {
 	switch node := node.(type) {
 	case *ast.Program:
@@ -99,7 +101,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		c.emit(code.OpJump, startPos)
-		c.changeOperand(jumpPos, len(c.currentInstructions()))
+		afterPos := len(c.currentInstructions())
+		c.changeOperand(jumpPos, afterPos)
+
+		for _, jumpReturn := range jumpReturns {
+			c.changeOperand(*jumpReturn, afterPos)
+		}
 	case *ast.ConditionalStatement:
 		err := c.Compile(node.Condition)
 		if err != nil {
@@ -142,6 +149,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		afterAlternativePos := len(c.currentInstructions())
 		c.changeOperand(jumpToEnd, afterAlternativePos)
+
+		for _, jumpReturn := range jumpReturns {
+			c.changeOperand(*jumpReturn, afterAlternativePos)
+		}
 	case *ast.BlockStatement:
 		c.currentScope = c.deeperScope()
 		for _, s := range node.Statements {
@@ -279,6 +290,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		c.emit(code.OpReturnValue)
+
+		if c.scopeIndex == 0 {
+			val := c.emit(code.OpJump, 9999)
+			jumpReturns = append(jumpReturns, &val)
+		}
 	case *ast.CallExpression:
 		err := c.Compile(node.Function)
 		if err != nil {
