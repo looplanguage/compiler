@@ -8,6 +8,8 @@ import (
 	"sort"
 )
 
+var jumpReturns []*int
+
 func (c *Compiler) Compile(node ast.Node) error {
 	switch node := node.(type) {
 	case *ast.Program:
@@ -99,7 +101,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 
 		c.emit(code.OpJump, startPos)
-		c.changeOperand(jumpPos, len(c.currentInstructions()))
+		afterPos := len(c.currentInstructions())
+		c.changeOperand(jumpPos, afterPos)
 	case *ast.ConditionalStatement:
 		err := c.Compile(node.Condition)
 		if err != nil {
@@ -151,6 +154,15 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 		c.currentScope = c.currentScope.Outer
+
+		if c.currentScope.Outer == nil {
+			skipTo := len(c.currentInstructions())
+			for _, jumpReturn := range jumpReturns {
+				c.changeOperand(*jumpReturn, skipTo)
+			}
+
+			jumpReturns = []*int{}
+		}
 	case *ast.VariableDeclaration:
 		index := c.variables
 
@@ -273,12 +285,21 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		c.emit(code.OpClosure, c.addConstant(compiledFunc), len(freeSymbols))
 	case *ast.Return:
+		if c.currentScope.Outer == nil {
+			return fmt.Errorf("cannot have return statement in root scope")
+		}
+
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
 		}
 
 		c.emit(code.OpReturnValue)
+
+		if c.scopeIndex == 0 {
+			val := c.emit(code.OpJump, 9999)
+			jumpReturns = append(jumpReturns, &val)
+		}
 	case *ast.CallExpression:
 		err := c.Compile(node.Function)
 		if err != nil {
