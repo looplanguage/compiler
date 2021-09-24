@@ -107,6 +107,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 		for _, jumpReturn := range jumpReturns {
 			c.changeOperand(*jumpReturn, afterPos)
 		}
+
+		jumpReturns = []*int{}
 	case *ast.ConditionalStatement:
 		err := c.Compile(node.Condition)
 		if err != nil {
@@ -153,6 +155,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 		for _, jumpReturn := range jumpReturns {
 			c.changeOperand(*jumpReturn, afterAlternativePos)
 		}
+
+		jumpReturns = []*int{}
 	case *ast.BlockStatement:
 		c.currentScope = c.deeperScope()
 		for _, s := range node.Statements {
@@ -284,6 +288,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		c.emit(code.OpClosure, c.addConstant(compiledFunc), len(freeSymbols))
 	case *ast.Return:
+		if c.currentScope.Outer == nil {
+			return fmt.Errorf("cannot have return statement in root scope")
+		}
+
 		err := c.Compile(node.Value)
 		if err != nil {
 			return err
