@@ -103,12 +103,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(code.OpJump, startPos)
 		afterPos := len(c.currentInstructions())
 		c.changeOperand(jumpPos, afterPos)
-
-		for _, jumpReturn := range jumpReturns {
-			c.changeOperand(*jumpReturn, afterPos)
-		}
-
-		jumpReturns = []*int{}
 	case *ast.ConditionalStatement:
 		err := c.Compile(node.Condition)
 		if err != nil {
@@ -151,12 +145,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		afterAlternativePos := len(c.currentInstructions())
 		c.changeOperand(jumpToEnd, afterAlternativePos)
-
-		for _, jumpReturn := range jumpReturns {
-			c.changeOperand(*jumpReturn, afterAlternativePos)
-		}
-
-		jumpReturns = []*int{}
 	case *ast.BlockStatement:
 		c.currentScope = c.deeperScope()
 		for _, s := range node.Statements {
@@ -166,6 +154,15 @@ func (c *Compiler) Compile(node ast.Node) error {
 			}
 		}
 		c.currentScope = c.currentScope.Outer
+
+		if c.currentScope.Outer == nil {
+			skipTo := len(c.currentInstructions())
+			for _, jumpReturn := range jumpReturns {
+				c.changeOperand(*jumpReturn, skipTo)
+			}
+
+			jumpReturns = []*int{}
+		}
 	case *ast.VariableDeclaration:
 		index := c.variables
 
