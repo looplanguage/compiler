@@ -290,7 +290,7 @@ func runCompilerTestsErrors(t *testing.T, tests []compilerTestCaseError) {
 
 		compiler := Create()
 
-		err := compiler.Compile(program)
+		err := compiler.Compile(program, "", "", "")
 
 		if err == nil && tc.expected != "" {
 			t.Fatalf("incorrect error. got=%q. expected=%q", err, tc.expected)
@@ -312,7 +312,7 @@ func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 
 		compiler := Create()
 
-		err := compiler.Compile(program)
+		err := compiler.Compile(program, "", "", "")
 
 		if err != nil {
 			t.Fatalf("compiler error: %s", err)
