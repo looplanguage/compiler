@@ -42,7 +42,7 @@ func main() {
 	}
 
 	comp := compiler.Create()
-	err = comp.Compile(program)
+	err = comp.Compile(program, file, "", file)
 
 	if err != nil {
 		log.Fatalln(err)

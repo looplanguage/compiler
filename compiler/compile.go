@@ -3,36 +3,40 @@ package compiler
 import (
 	"fmt"
 	"github.com/looplanguage/compiler/code"
+	"github.com/looplanguage/loop/lexer"
 	"github.com/looplanguage/loop/models/ast"
 	"github.com/looplanguage/loop/models/object"
+	"github.com/looplanguage/loop/parser"
+	"io/ioutil"
+	"path/filepath"
 	"sort"
 )
 
 var jumpReturns []*int
 
-func (c *Compiler) Compile(node ast.Node) error {
+func (c *Compiler) Compile(node ast.Node, root, identifier, previous string) error {
 	switch node := node.(type) {
 	case *ast.Program:
 		for _, stmt := range node.Statements {
-			err := c.Compile(stmt)
+			err := c.Compile(stmt, root, identifier, previous)
 			if err != nil {
 				return err
 			}
 		}
 	case *ast.ExpressionStatement:
-		err := c.Compile(node.Expression)
+		err := c.Compile(node.Expression, root, "", previous)
 		if err != nil {
 			return err
 		}
 		c.emit(code.OpPop)
 	case *ast.SuffixExpression:
 		if node.Operator == "<" {
-			err := c.Compile(node.Right)
+			err := c.Compile(node.Right, root, "", previous)
 			if err != nil {
 				return err
 			}
 
-			err = c.Compile(node.Left)
+			err = c.Compile(node.Left, root, "", previous)
 			if err != nil {
 				return err
 			}
@@ -41,12 +45,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return nil
 		}
 
-		err := c.Compile(node.Left)
+		err := c.Compile(node.Left, root, "", previous)
 		if err != nil {
 			return err
 		}
 
-		err = c.Compile(node.Right)
+		err = c.Compile(node.Right, root, "", previous)
 		if err != nil {
 			return err
 		}
@@ -84,14 +88,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 	case *ast.While:
 		startPos := len(c.currentInstructions())
-		err := c.Compile(node.Condition)
+		err := c.Compile(node.Condition, root, "", previous)
 		if err != nil {
 			return err
 		}
 
 		jumpPos := c.emit(code.OpJumpIfNotTrue, 9999)
 
-		err = c.Compile(node.Block)
+		err = c.Compile(node.Block, root, "", previous)
 		if err != nil {
 			return err
 		}
@@ -113,14 +117,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 			jumpReturns = []*int{}
 		}
 	case *ast.ConditionalStatement:
-		err := c.Compile(node.Condition)
+		err := c.Compile(node.Condition, root, "", previous)
 		if err != nil {
 			return err
 		}
 
 		jumpPos := c.emit(code.OpJumpIfNotTrue, 9999)
 
-		err = c.Compile(node.Body)
+		err = c.Compile(node.Body, root, "", previous)
 		if err != nil {
 			return err
 		}
@@ -137,7 +141,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if node.ElseCondition == nil && node.ElseStatement == nil {
 			c.emit(code.OpNull)
 		} else if node.ElseCondition != nil {
-			err := c.Compile(node.ElseCondition)
+			err := c.Compile(node.ElseCondition, root, "", previous)
 			if err != nil {
 				return nil
 			}
@@ -146,7 +150,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 				c.removeLastPop()
 			}
 		} else if node.ElseStatement != nil {
-			err := c.Compile(node.ElseStatement)
+			err := c.Compile(node.ElseStatement, root, "", previous)
 			if err != nil {
 				return nil
 			}
@@ -166,7 +170,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 	case *ast.BlockStatement:
 		c.currentScope = c.deeperScope()
 		for _, s := range node.Statements {
-			err := c.Compile(s)
+			err := c.Compile(s, root, "", previous)
 			if err != nil {
 				return err
 			}
@@ -176,35 +180,41 @@ func (c *Compiler) Compile(node ast.Node) error {
 	case *ast.VariableDeclaration:
 		index := c.variables
 
+		name := node.Identifier.Value
+
+		if root != "" {
+			name = "_INTERNAL_" + root + "" + name
+		}
+
 		c.currentScope.Variables[index] = Variable{
-			Name:   node.Identifier.Value,
+			Name:   name,
 			Index:  index,
 			Object: &object.Null{},
 		}
 
 		c.variables++
 
-		err := c.Compile(node.Value)
+		err := c.Compile(node.Value, root, "", previous)
 		if err != nil {
 			return err
 		}
 
 		c.emit(code.OpSetVar, index)
 	case *ast.Assign:
-		variable := c.currentScope.FindByName(node.Identifier.Value)
+		variable := c.currentScope.FindByName(node.Identifier.Value, root)
 
 		if variable == nil {
 			return fmt.Errorf("undefined variable %s", node.Identifier.Value)
 		}
 
-		err := c.Compile(node.Value)
+		err := c.Compile(node.Value, root, "", previous)
 		if err != nil {
 			return err
 		}
 
 		c.emit(code.OpSetVar, variable.Index)
 	case *ast.Identifier:
-		variable := c.currentScope.FindByName(node.Value)
+		variable := c.currentScope.FindByName(node.Value, root)
 
 		if variable != nil {
 			c.emit(code.OpGetVar, variable.Index)
@@ -217,7 +227,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 		}
 	case *ast.Array:
 		for _, element := range node.Elements {
-			err := c.Compile(element)
+			err := c.Compile(element, root, "", previous)
 			if err != nil {
 				return err
 			}
@@ -225,12 +235,12 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		c.emit(code.OpArray, len(node.Elements))
 	case *ast.IndexExpression:
-		err := c.Compile(node.Value)
+		err := c.Compile(node.Value, root, "", previous)
 		if err != nil {
 			return err
 		}
 
-		err = c.Compile(node.Index)
+		err = c.Compile(node.Index, root, "", previous)
 		if err != nil {
 			return err
 		}
@@ -248,11 +258,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 		})
 
 		for _, k := range keys {
-			err := c.Compile(k)
+			err := c.Compile(k, root, "", previous)
 			if err != nil {
 				return err
 			}
-			err = c.Compile(node.Values[k])
+			err = c.Compile(node.Values[k], root, "", previous)
 			if err != nil {
 				return err
 			}
@@ -266,7 +276,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.symbolTable.Define(p.Value)
 		}
 
-		err := c.Compile(node.Body)
+		err := c.Compile(node.Body, root, "", previous)
 		if err != nil {
 			return err
 		}
@@ -299,7 +309,7 @@ func (c *Compiler) Compile(node ast.Node) error {
 			return fmt.Errorf("cannot have return statement in root scope")
 		}
 
-		err := c.Compile(node.Value)
+		err := c.Compile(node.Value, root, "", previous)
 		if err != nil {
 			return err
 		}
@@ -311,19 +321,54 @@ func (c *Compiler) Compile(node ast.Node) error {
 			jumpReturns = append(jumpReturns, &val)
 		}
 	case *ast.CallExpression:
-		err := c.Compile(node.Function)
+		err := c.Compile(node.Function, root, "", previous)
 		if err != nil {
 			return err
 		}
 
 		for _, arg := range node.Parameters {
-			err := c.Compile(arg)
+			err := c.Compile(arg, root, "", previous)
 			if err != nil {
 				return err
 			}
 		}
 
 		c.emit(code.OpCall, len(node.Parameters))
+	case *ast.Import:
+		p := filepath.Join(filepath.Dir(root), node.File)
+		content, err := ioutil.ReadFile(p)
+
+		if err != nil {
+			return fmt.Errorf("unable to import. file=%q. error=%q", node.File, err)
+		}
+
+		l := lexer.Create(string(content))
+		pars := parser.Create(l)
+		program := pars.Parse()
+
+		err = c.Compile(program, p, node.Identifier, root)
+
+		if err != nil {
+			return err
+		}
+	case *ast.Export:
+		fmt.Println(identifier)
+		index := c.variables
+
+		c.currentScope.Variables[index] = Variable{
+			Name:   identifier,
+			Index:  index,
+			Object: &object.Null{},
+		}
+
+		c.variables++
+
+		err := c.Compile(node.Expression, root, identifier, previous)
+		if err != nil {
+			return err
+		}
+
+		c.emit(code.OpSetVar, index)
 	}
 
 	return nil
