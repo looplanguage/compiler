@@ -89,13 +89,21 @@ func (c *Compiler) importPackageGithub(root string, node *ast.Import) error {
 	r := regexp.MustCompile("https://github\\.com/(?P<repo>\\w*/\\w*)?.*")
 	names := r.SubexpNames()
 
-	result := r.FindAllStringSubmatch(node.File, -1)
+	urlParts := strings.Split(node.File, "@")
+	url := urlParts[0]
+	version := "latest"
+
+	if len(urlParts) == 2 && urlParts[1] != "latest" {
+		version = "tags/" + urlParts[1]
+	}
+
+	result := r.FindAllStringSubmatch(url, -1)
 	m := map[string]string{}
 	for i, n := range result[0] {
 		m[names[i]] = n
 	}
 
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", m["repo"]), nil)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://api.github.com/repos/%s/releases/%s", m["repo"], version), nil)
 
 	if err != nil {
 		log.Fatal(err)
