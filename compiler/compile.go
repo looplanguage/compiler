@@ -3,12 +3,8 @@ package compiler
 import (
 	"fmt"
 	"github.com/looplanguage/compiler/code"
-	"github.com/looplanguage/loop/lexer"
 	"github.com/looplanguage/loop/models/ast"
 	"github.com/looplanguage/loop/models/object"
-	"github.com/looplanguage/loop/parser"
-	"io/ioutil"
-	"path/filepath"
 	"sort"
 )
 
@@ -335,24 +331,12 @@ func (c *Compiler) Compile(node ast.Node, root, identifier, previous string) err
 
 		c.emit(code.OpCall, len(node.Parameters))
 	case *ast.Import:
-		p := filepath.Join(filepath.Dir(root), node.File)
-		content, err := ioutil.ReadFile(p)
-
-		if err != nil {
-			return fmt.Errorf("unable to import. file=%q. error=%q", node.File, err)
-		}
-
-		l := lexer.Create(string(content))
-		pars := parser.Create(l)
-		program := pars.Parse()
-
-		err = c.Compile(program, p, node.Identifier, root)
+		err := c.importPackage(root, node)
 
 		if err != nil {
 			return err
 		}
 	case *ast.Export:
-		fmt.Println(identifier)
 		index := c.variables
 
 		c.currentScope.Variables[index] = Variable{
