@@ -24,15 +24,26 @@ type VariableScope struct {
 	Outer     *VariableScope
 }
 
-func (vs *VariableScope) FindByName(name string) *Variable {
-	for _, v := range vs.Variables {
-		if v.Name == name {
-			return &v
+func (vs *VariableScope) FindByName(name, root string) *Variable {
+	if root == "" {
+		for _, v := range vs.Variables {
+			if v.Name == name {
+				return &v
+			}
+		}
+	} else {
+		for _, v := range vs.Variables {
+			if v.Name == "_INTERNAL_"+root+name {
+				return &v
+			}
+			if v.Name == name {
+				return &v
+			}
 		}
 	}
 
 	if vs.Outer != nil {
-		return vs.Outer.FindByName(name)
+		return vs.Outer.FindByName(name, root)
 	}
 
 	return nil
@@ -49,6 +60,8 @@ type Compiler struct {
 	scopeIndex int
 
 	variables int
+
+	root string
 }
 
 type EmittedInstruction struct {
@@ -126,10 +139,6 @@ func CreateWithState(s *SymbolTable, constants []object.Object) *Compiler {
 	comp.constants = constants
 
 	return comp
-}
-
-func (c *Compiler) compileToFile(path string) {
-
 }
 
 func (c *Compiler) addConstant(obj object.Object) int {
