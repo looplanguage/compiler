@@ -207,18 +207,40 @@ func (c *Compiler) Compile(node ast.Node, root, identifier, previous string) err
 				}
 
 				c.emit(code.OpSetLocal, s.Index)
-				return nil
+			} else {
+				return fmt.Errorf("undefined variable %s", node.Identifier.Value)
+			}
+		} else {
+			err := c.Compile(node.Value, root, "", previous)
+			if err != nil {
+				return err
 			}
 
-			return fmt.Errorf("undefined variable %s", node.Identifier.Value)
+			c.emit(code.OpSetVar, variable.Index)
 		}
+	case *ast.IndexAssign:
+		// Put the new value on the stack
+		err := c.Compile(node.Value, root, "", "")
 
-		err := c.Compile(node.Value, root, "", previous)
 		if err != nil {
 			return err
 		}
 
-		c.emit(code.OpSetVar, variable.Index)
+		// Put the index on the array
+		err = c.Compile(node.Index, root, "", "")
+
+		if err != nil {
+			return err
+		}
+
+		// Put the array on the stack
+		err = c.Compile(node.Object, root, "", "")
+
+		if err != nil {
+			return err
+		}
+
+		c.emit(code.OpSetIndex)
 	case *ast.Identifier:
 		variable := c.currentScope.FindByName(node.Value, root)
 
