@@ -200,6 +200,16 @@ func (c *Compiler) Compile(node ast.Node, root, identifier, previous string) err
 		variable := c.currentScope.FindByName(node.Identifier.Value, root)
 
 		if variable == nil {
+			if s, ok := c.symbolTable.Resolve(node.Identifier.Value); ok {
+				err := c.Compile(node.Value, root, "", previous)
+				if err != nil {
+					return err
+				}
+
+				c.emit(code.OpSetLocal, s.Index)
+				return nil
+			}
+
 			return fmt.Errorf("undefined variable %s", node.Identifier.Value)
 		}
 
