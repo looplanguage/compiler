@@ -200,15 +200,47 @@ func (c *Compiler) Compile(node ast.Node, root, identifier, previous string) err
 		variable := c.currentScope.FindByName(node.Identifier.Value, root)
 
 		if variable == nil {
-			return fmt.Errorf("undefined variable %s", node.Identifier.Value)
-		}
+			if s, ok := c.symbolTable.Resolve(node.Identifier.Value); ok {
+				err := c.Compile(node.Value, root, "", previous)
+				if err != nil {
+					return err
+				}
 
-		err := c.Compile(node.Value, root, "", previous)
+				c.emit(code.OpSetLocal, s.Index)
+			} else {
+				return fmt.Errorf("undefined variable %s", node.Identifier.Value)
+			}
+		} else {
+			err := c.Compile(node.Value, root, "", previous)
+			if err != nil {
+				return err
+			}
+
+			c.emit(code.OpSetVar, variable.Index)
+		}
+	case *ast.IndexAssign:
+		// Put the new value on the stack
+		err := c.Compile(node.Value, root, "", "")
+
 		if err != nil {
 			return err
 		}
 
-		c.emit(code.OpSetVar, variable.Index)
+		// Put the index on the array
+		err = c.Compile(node.Index, root, "", "")
+
+		if err != nil {
+			return err
+		}
+
+		// Put the array on the stack
+		err = c.Compile(node.Object, root, "", "")
+
+		if err != nil {
+			return err
+		}
+
+		c.emit(code.OpSetIndex)
 	case *ast.Identifier:
 		variable := c.currentScope.FindByName(node.Value, root)
 

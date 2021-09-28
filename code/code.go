@@ -35,6 +35,8 @@ const (
 
 	OpSetVar
 	OpGetVar
+
+	OpSetIndex
 )
 
 var definitions = map[OpCode]*Definition{
@@ -68,4 +70,6 @@ var definitions = map[OpCode]*Definition{
 
 	OpSetVar: {"OpSetVar", []int{2}},
 	OpGetVar: {"OpGetVar", []int{2}},
+
+	OpSetIndex: {"OpSetIndex", []int{}},
 }
